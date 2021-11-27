@@ -1,0 +1,92 @@
+#!/usr/bin/env ruby
+
+ENV['BUNDLE_GEMFILE'] ||= File.expand_path('../Gemfile', __dir__)
+
+require 'bundler/setup'
+require 'dotenv/load'
+
+require 'json'
+require 'socket'
+require 'homie-mqtt'
+
+require 'faye/websocket'
+require 'eventmachine'
+
+module Hyperion
+  LED_COMPONENT = "LEDDEVICE".freeze
+end
+
+# Server info we care about
+# {"command"=>"serverinfo",
+#   "info"=>
+#    {"components"=>
+#      [{"enabled"=>true, "name"=>"ALL"},
+#       {"enabled"=>false, "name"=>"SMOOTHING"},
+#       {"enabled"=>false, "name"=>"BLACKBORDER"},
+#       {"enabled"=>false, "name"=>"FORWARDER"},
+#       {"enabled"=>false, "name"=>"BOBLIGHTSERVER"},
+#       {"enabled"=>true, "name"=>"GRABBER"},
+#       {"enabled"=>false, "name"=>"V4L"},
+#       {"enabled"=>true, "name"=>"LEDDEVICE"}],
+
+# Update when it happens#
+#
+# {"command"=>"components-update",
+#  "data"=>{"enabled"=>false, "name"=>"LEDDEVICE"}}
+
+class HyperionMQTTBridge
+  def initialize(name: nil, mqtt: ENV["MQTT_URL"], led_on: false, websocket: nil)
+    hostname = name || Socket.gethostname
+    short_name = hostname.split(/\./)[0]
+    @device = MQTT::Homie::Device.new(short_name, hostname, mqtt: mqtt, clear_topics: false)
+    @device.node("hyperion", "hyperion", "hyperion remote control") do |node|
+      node.property("led-status", "#{Hyperion::LED_COMPONENT} status", :boolean, led_on) do |update|
+        command = {
+          command: "componentstate",
+          componentstate: {
+            component: Hyperion::LED_COMPONENT,
+            state: update
+          }
+        }
+        websocket.send(command.to_json)
+      end
+    end
+    @device.publish
+  end
+
+  def led_state=(state)
+    @device["hyperion"]["led-status"].value = state
+  end
+end
+
+
+
+EM.run do
+  ws = Faye::WebSocket::Client.new(HYPERION_URL)
+  bridge = HyperionMQTTBridge.new(websocket: ws)
+
+  ws.on :open do
+    command = {
+      command: "serverinfo",
+      subscribe: ["components-update"],
+      tan: 1
+    }
+
+    ws.send(command.to_json)
+  end
+
+  ws.on :message do |event|
+    data = JSON.parse(event.data)
+
+    case data["command"]
+    when "serverinfo"
+      component = data.dig("info", "components")&.find { |c| c["name"] == Hyperion::LED_COMPONENT }
+      bridge.led_state = component["enabled"] || false
+    when "components-update"
+      update = data["data"]
+      if update["name"] == Hyperion::LED_COMPONENT
+        bridge.led_state = update["enabled"]
+      end
+    end
+  end
+end

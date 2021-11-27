@@ -1,0 +1,15 @@
+[Unit]
+Description=Hyperion MQTT Connector
+
+[Service]
+Type=simple
+User=user
+Group=group
+WorkingDirectory=/path/to/whereever
+# This assumes you're using chruby
+ExecStart=/usr/local/bin/chruby-exec 3.0 -- /path/to/hyperion-ws-to-mqtt/bin/hyperion-ws-to-mqtt
+Environment=SHELL=/bin/bash
+
+
+[Install]
+WantedBy=multi-user.target
