@@ -62,7 +62,7 @@ end
 
 
 EM.run do
-  ws = Faye::WebSocket::Client.new(HYPERION_URL)
+  ws = Faye::WebSocket::Client.new(ENV["HYPERION_URL"])
   bridge = HyperionMQTTBridge.new(websocket: ws)
 
   ws.on :open do
