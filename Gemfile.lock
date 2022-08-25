@@ -1,15 +1,15 @@
 GEM
   remote: http://rubygems.org/
   specs:
-    dotenv (2.7.6)
+    dotenv (2.8.1)
     eventmachine (1.2.7)
     faye-websocket (0.11.1)
       eventmachine (>= 0.12.0)
       websocket-driver (>= 0.5.1)
-    homie-mqtt (1.4.5)
+    homie-mqtt (1.6.1)
       mqtt-ccutrer (~> 1.0, >= 1.0.1)
       ruby2_keywords (~> 0.0.5)
-    mqtt-ccutrer (1.0.1)
+    mqtt-ccutrer (1.0.2)
     ruby2_keywords (0.0.5)
     websocket-driver (0.7.5)
       websocket-extensions (>= 0.1.0)
